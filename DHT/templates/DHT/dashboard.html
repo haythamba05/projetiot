@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard DHT11</title>
+<style>
+  :root { --ok: #2dd4bf; --hot: #f43f5e; --c: var(--ok); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; padding: 32px 20px; color: #e8ecf4;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(circle at 15% 0%, #1e293b, #0b1020 60%);
+  }
+  header { max-width: 1000px; margin: 0 auto 28px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 22px; font-weight: 500; }
+  header span { font-size: 13px; color: #94a3b8; }
+  .grid { max-width: 1000px; margin: 0 auto; display: grid; gap: 20px;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .card { padding: 26px; border-radius: 22px; background: rgba(255,255,255,.06);
+          border: 1px solid rgba(255,255,255,.1); box-shadow: 0 16px 50px rgba(0,0,0,.35);
+          backdrop-filter: blur(12px); }
+  .card h2 { font-size: 12px; letter-spacing: 2.5px; text-transform: uppercase;
+             color: #94a3b8; font-weight: 500; margin-bottom: 18px; }
+  .wide { grid-column: 1 / -1; }
+
+  .gauge { position: relative; width: 190px; height: 190px; margin: 0 auto; }
+  .gauge svg { transform: rotate(-90deg); }
+  .gauge circle { fill: none; stroke-width: 12; stroke-linecap: round; }
+  .track { stroke: rgba(255,255,255,.1); }
+  .arc { stroke: var(--c); stroke-dasharray: 502.65; transition: stroke-dashoffset .6s ease, stroke .4s;
+         filter: drop-shadow(0 0 8px var(--c)); }
+  .gauge .value { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .gauge .big { font-size: 46px; font-weight: 300; color: var(--c); transition: color .4s; }
+  .gauge small { font-size: 12px; color: #94a3b8; }
+  .badge { display: block; width: fit-content; margin: 16px auto 0; padding: 6px 16px;
+           border-radius: 999px; font-size: 13px; color: var(--c);
+           background: color-mix(in srgb, var(--c) 18%, transparent); transition: all .4s; }
+  .meta { display: flex; justify-content: space-around; margin-top: 20px; font-size: 13px; color: #94a3b8; }
+  .meta b { display: block; font-size: 20px; color: #e8ecf4; font-weight: 500; }
+
+  .big-temp { text-align: center; font-size: 52px; font-weight: 300; color: var(--c); transition: color .4s; }
+  .state { text-align: center; font-size: 13px; color: var(--c); margin-bottom: 14px; transition: color .4s; }
+  input[type=range] { width: 100%; accent-color: var(--c); }
+  label { display: block; margin: 18px 0 6px; font-size: 13px; color: #94a3b8; }
+  input[type=number] { width: 100%; padding: 12px 14px; border-radius: 12px; font-size: 16px; color: #fff;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); outline: none; }
+  input[type=number]:focus { border-color: var(--c); }
+  button { width: 100%; margin-top: 20px; padding: 14px; border: 0; border-radius: 14px; cursor: pointer;
+    font-size: 15px; font-weight: 600; color: #0b1020; background: var(--c); transition: transform .15s, background .4s; }
+  button:hover { transform: translateY(-2px); }
+  #msg { margin-top: 14px; min-height: 18px; text-align: center; font-size: 13px; color: #94a3b8; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 8px; font-size: 12px; letter-spacing: 1.5px;
+       text-transform: uppercase; color: #94a3b8; font-weight: 500; }
+  td { padding: 12px 8px; border-top: 1px solid rgba(255,255,255,.07); }
+  .pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; }
+  .pill.ok { color: var(--ok); background: rgba(45,212,191,.15); }
+  .pill.hot { color: var(--hot); background: rgba(244,63,94,.15); }
+  .empty { text-align: center; color: #94a3b8; padding: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dashboard DHT11</h1>
+  <span>Seuil d'alerte : 25 °C</span>
+</header>
+
+<div class="grid">
+
+  <div class="card">
+    <h2>Dernière mesure</h2>
+    {% if mesure %}
+    <div class="gauge" id="gaugeLast" data-temp="{{ mesure.temperature|stringformat:'f' }}">
+      <svg width="190" height="190" viewBox="0 0 190 190">
+        <circle class="track" cx="95" cy="95" r="80"/>
+        <circle class="arc" id="arcLast" cx="95" cy="95" r="80" stroke-dashoffset="502.65"/>
+      </svg>
+      <div class="value">
+        <span class="big" id="lastTemp">{{ mesure.temperature }}°</span>
+        <small>Température</small>
+      </div>
+    </div>
+    <span class="badge" id="lastBadge">Normale</span>
+    <div class="meta">
+      <div><b>{{ mesure.humidity }} %</b>Humidité</div>
+      <div><b>{{ mesure.dt|date:"H:i" }}</b>{{ mesure.dt|date:"d/m/Y" }}</div>
+    </div>
+    {% else %}
+    <p class="empty">Aucune mesure pour le moment.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Envoyer une mesure</h2>
+    <div class="big-temp" id="simTemp">22°</div>
+    <div class="state" id="simState">Normale</div>
+    <input type="range" id="slider" min="0" max="50" step="0.5" value="22">
+    <label>Humidité (%)</label>
+    <input type="number" id="hum" value="50" min="0" max="100">
+    <button id="send">Envoyer la mesure</button>
+    <div id="msg"></div>
+  </div>
+
+  <div class="card wide">
+    <h2>5 dernières mesures</h2>
+    <table>
+      <tr><th>Date</th><th>Température</th><th>Humidité</th><th>État</th></tr>
+      {% for m in dernieres_mesures %}
+      <tr>
+        <td>{{ m.dt|date:"d/m/Y H:i" }}</td>
+        <td>{{ m.temperature }} °C</td>
+        <td>{{ m.humidity }} %</td>
+        <td>
+          {% if m.temperature > 25 %}<span class="pill hot">Alerte</span>
+          {% else %}<span class="pill ok">Normale</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="empty">Aucune mesure.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const root = document.documentElement;
+
+  const gl = $("gaugeLast");
+  if (gl) {
+    const t = parseFloat(gl.dataset.temp);
+    const hot = t > 25;
+    $("arcLast").style.strokeDashoffset = 502.65 * (1 - Math.min(Math.max(t / 50, 0), 1));
+    gl.style.setProperty("--c", hot ? "#f43f5e" : "#2dd4bf");
+    $("lastBadge").style.setProperty("--c", hot ? "#f43f5e" : "#2dd4bf");
+    $("lastBadge").textContent = hot ? "Alerte : trop chaud" : "Normale";
+  }
+
+  function update() {
+    const t = parseFloat($("slider").value), hot = t > 25;
+    $("simTemp").textContent = t + "°";
+    $("simState").textContent = hot ? "Alerte : trop chaud" : "Normale";
+    root.style.setProperty("--c", hot ? "#f43f5e" : "#2dd4bf");
+    if (gl) gl.style.setProperty("--c", hot ? "#f43f5e" : "#2dd4bf");
+  }
+  $("slider").addEventListener("input", update);
+  update();
+
+  $("send").addEventListener("click", async () => {
+    const t = parseFloat($("slider").value);
+    $("msg").textContent = "Envoi en cours...";
+    try {
+      const r = await fetch("/post/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ temperature: t, humidity: parseFloat($("hum").value) })
+      });
+      if (r.ok) {
+        $("msg").textContent = t > 25
+          ? "Envoyé. Alerte Gmail + Telegram déclenchée."
+          : "Enregistré. Aucune alerte.";
+        setTimeout(() => location.reload(), 1800);
+      } else {
+        $("msg").textContent = "Erreur " + r.status;
+      }
+    } catch (e) {
+      $("msg").textContent = "Serveur injoignable.";
+    }
+  });
+</script>
+</body>
+</html>
